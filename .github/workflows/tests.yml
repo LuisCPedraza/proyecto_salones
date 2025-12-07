@@ -1,0 +1,57 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: salones_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo, pdo_pgsql
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Generate app key
+        run: php artisan key:generate --env=testing
+
+      - name: Run migrations
+        run: php artisan migrate --env=testing
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: salones_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: password
+
+      - name: Run tests
+        run: php artisan test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: salones_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: password
